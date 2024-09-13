@@ -21,9 +21,8 @@ echo + `date` job $JOB_NAME started in $QUEUE with jobID=$JOB_ID on $HOSTNAME
 echo + NSLOTS = $NSLOTS
 module load nvidia
 
-python app.py --port 8083
+python app.py
 
 echo "Job finished at $(date)"
 
-# 
-ssh -N -L 8888:compute-79-01:8083 mattinglyw@hydra-login01.si.edu
+# ssh -N -L 8888:compute-79-01:8083 mattinglyw@hydra-login01.si.edu

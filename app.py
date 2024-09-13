@@ -1,6 +1,6 @@
 import gradio as gr
 import torch
-from working_finetune import train_and_validate
+from finetune import train_and_validate
 import json
 
 def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps):
@@ -102,4 +102,4 @@ with gr.Blocks() as iface:
 
 # Launch the app
 if __name__ == "__main__":
-    iface.launch(server_port=8083, server_name="compute-79-01")
+    iface.launch(server_port=8083, server_name="compute-50-01")
