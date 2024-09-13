@@ -3,7 +3,7 @@ import torch
 from finetune import train_and_validate
 import json
 
-def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps):
+def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps, train_batch_size, val_batch_size, train_select_start, train_select_end, val_select_start, val_select_end):
     # Set the device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
@@ -19,7 +19,13 @@ def finetune_model(model_name, output_dir, dataset_name, image_column, text_colu
         user_text=user_text,
         num_accumulation_steps=num_accumulation_steps,
         eval_steps=eval_steps,
-        max_steps=max_steps
+        max_steps=max_steps,
+        train_batch_size=train_batch_size,
+        val_batch_size=val_batch_size,
+        train_select_start=train_select_start,
+        train_select_end=train_select_end,
+        val_select_start=val_select_start,
+        val_select_end=val_select_end
     )
     
     return f"Training completed. Model saved in {output_dir}"
@@ -87,16 +93,26 @@ with gr.Blocks() as iface:
     preview_button.click(preview_message_structure, inputs=[dataset_name, image_column, text_column, user_text], outputs=[message_preview])
     
     output_dir = gr.Textbox(label="Output Directory")
-    num_accumulation_steps = gr.Number(label="Number of Accumulation Steps", value=2)
-    eval_steps = gr.Number(label="Evaluation Steps", value=10000)
-    max_steps = gr.Number(label="Max Steps", value=100000)
-    
+    with gr.Row():
+        with gr.Column():
+            num_accumulation_steps = gr.Number(label="Number of Accumulation Steps", value=2)
+            eval_steps = gr.Number(label="Evaluation Steps", value=10000)
+            max_steps = gr.Number(label="Max Steps", value=100000)
+        with gr.Column():
+            train_batch_size = gr.Number(label="Training Batch Size", value=1)
+            val_batch_size = gr.Number(label="Validation Batch Size", value=1)
+        with gr.Column():
+            train_select_start = gr.Number(label="Training Select Start", value=0)
+            train_select_end = gr.Number(label="Training Select End", value=1000)
+        with gr.Column():
+            val_select_start = gr.Number(label="Validation Select Start", value=0)
+            val_select_end = gr.Number(label="Validation Select End", value=1000)
     finetune_button = gr.Button("Start Finetuning")
     result = gr.Textbox(label="Result")
     
     finetune_button.click(
         finetune_model,
-        inputs=[model_name,output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps],
+        inputs=[model_name,output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps, train_batch_size, val_batch_size, train_select_start, train_select_end, val_select_start, val_select_end],
         outputs=[result]
     )
 
