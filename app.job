@@ -26,4 +26,4 @@ python app.py --port 8083
 echo "Job finished at $(date)"
 
 # 
-ssh -N -L 8888:127.0.0.1:7860 mattinglyw@hydra-login01.si.edu
+ssh -N -L 8888:compute-79-01:8083 mattinglyw@hydra-login01.si.edu

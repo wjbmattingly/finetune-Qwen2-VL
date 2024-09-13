@@ -1,4 +1,5 @@
 import torch
+import datetime
 import os
 import base64
 from io import BytesIO
@@ -9,28 +10,29 @@ from torch.optim import AdamW
 from datasets import load_dataset
 from PIL import Image
 from functools import partial
+from util.logutil import init_logger, get_logger
 from tqdm import tqdm
 
-from accelerate import Accelerator
-
-accelerator = Accelerator(gradient_accumulation_steps=2)
-device = accelerator.device
-
-output_dir = f'train_output/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}/'
-if accelerator.is_local_main_process:
-    os.makedirs(output_dir, exist_ok=True)
 
 def find_assistant_content_sublist_indexes(l):
+    # (Pdb++) processor.tokenizer.encode("<|im_start|>assistant")
+    # [151644, 77091]
+    # (Pdb++) processor.tokenizer.encode("<|im_end|>")
+    # [151645]
+
     start_indexes = []
     end_indexes = []
 
+    # Iterate through the list to find starting points
     for i in range(len(l) - 1):
+        # Check if the current and next element form the start sequence
         if l[i] == 151644 and l[i + 1] == 77091:
             start_indexes.append(i)
+            # Now look for the first 151645 after the start
             for j in range(i + 2, len(l)):
                 if l[j] == 151645:
                     end_indexes.append(j)
-                    break
+                    break  # Move to the next start after finding the end
 
     return list(zip(start_indexes, end_indexes))
 
@@ -71,6 +73,7 @@ def ensure_pil_image(image, min_size=256):
     if isinstance(image, Image.Image):
         pil_image = image
     elif isinstance(image, str):
+        # Assuming it's a base64 string
         if image.startswith('data:image'):
             image = image.split(',')[1]
         image_data = base64.b64decode(image)
@@ -78,10 +81,14 @@ def ensure_pil_image(image, min_size=256):
     else:
         raise ValueError(f"Unsupported image type: {type(image)}")
     
+    # Check if the image is smaller than the minimum size
     if pil_image.width < min_size or pil_image.height < min_size:
+        # Calculate the scaling factor
         scale = max(min_size / pil_image.width, min_size / pil_image.height)
         new_width = int(pil_image.width * scale)
         new_height = int(pil_image.height * scale)
+        
+        # Resize the image
         pil_image = pil_image.resize((new_width, new_height), Image.LANCZOS)
     
     return pil_image
@@ -90,6 +97,7 @@ def collate_fn(batch, processor, device):
     messages = [item['messages'] for item in batch]
     texts = [processor.apply_chat_template(msg, tokenize=False, add_generation_prompt=False) for msg in messages]
     
+    # Ensure all images are PIL Image objects
     images = [ensure_pil_image(msg[0]['content'][0]['image']) for msg in messages]
     
     inputs = processor(
@@ -127,14 +135,16 @@ def validate(model, val_loader):
     model.train()
     return avg_val_loss
 
-def train_and_validate(model_name, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+def train_and_validate(model_name, output_dir, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         model_name, torch_dtype=torch.bfloat16,
+        # attn_implementation="flash_attention_2",
         device_map=device
     )
 
     processor = AutoProcessor.from_pretrained(model_name, min_pixels=256*28*28, max_pixels=512*28*28, padding_side="right")
 
+    # Load and split the dataset
     dataset = load_dataset(dataset_name)
     train_dataset = dataset['train'].shuffle(seed=42).select(range(int(len(dataset['train']) * 0.9)))
     val_dataset = dataset['train'].shuffle(seed=42).select(range(int(len(dataset['train']) * 0.9), len(dataset['train'])))
@@ -157,65 +167,55 @@ def train_and_validate(model_name, dataset_name, image_column, text_column, user
 
     model.train()
     optimizer = AdamW(model.parameters(), lr=1e-5)
-
-    model, optimizer, train_loader, val_loader = accelerator.prepare(model, optimizer, train_loader, val_loader)
+    NUM_ACCUMULATION_STEPS = 2
+    EVAL_STEPS = 10000
+    MAX_STEPS = 100000
 
     global_step = 0
-    progress_bar = tqdm(total=max_steps, desc="Training")
 
-    while global_step < max_steps:
+    progress_bar = tqdm(total=MAX_STEPS, desc="Training")
+
+    while global_step < MAX_STEPS:
         for batch in train_loader:
-            with accelerator.accumulate(model):
-                global_step += 1
-                inputs, labels = batch
-                outputs = model(**inputs, labels=labels)
-                
-                loss = outputs.loss
-                accelerator.backward(loss)
-                
-                if global_step % num_accumulation_steps == 0:
-                    optimizer.step()
-                    optimizer.zero_grad()
+            global_step += 1
+            inputs, labels = batch
+            outputs = model(**inputs, labels=labels)
+            
+            loss = outputs.loss / NUM_ACCUMULATION_STEPS
+            loss.backward()
+            
+            if global_step % NUM_ACCUMULATION_STEPS == 0:
+                optimizer.step()
+                optimizer.zero_grad()
 
             progress_bar.update(1)
-            progress_bar.set_postfix({"loss": loss.item()})
+            progress_bar.set_postfix({"loss": loss.item() * NUM_ACCUMULATION_STEPS})
 
-            if global_step % eval_steps == 0 or global_step == max_steps:
+            # Perform evaluation and save model every EVAL_STEPS
+            if global_step % EVAL_STEPS == 0 or global_step == MAX_STEPS:
                 avg_val_loss = validate(model, val_loader)
-                accelerator.print(f"Step {global_step}, Validation Loss: {avg_val_loss}")
+                logger.info(f"Step {global_step}, Validation Loss: {avg_val_loss}")
 
-                if accelerator.is_local_main_process:
-                    save_dir = os.path.join(output_dir, f"model_step_{global_step}")
-                    os.makedirs(save_dir, exist_ok=True)
-                    unwrapped_model = accelerator.unwrap_model(model)
-                    unwrapped_model.save_pretrained(save_dir)
-                    processor.save_pretrained(save_dir)
-                    accelerator.print(f"Model and processor saved at step {global_step}")
+                # Save the model and processor
+                save_dir = os.path.join(output_dir, f"model_step_{global_step}")
+                os.makedirs(save_dir, exist_ok=True)
+                model.save_pretrained(save_dir)
+                processor.save_pretrained(save_dir)
+                logger.info(f"Model and processor saved at step {global_step}")
 
-                model.train()
+                model.train()  # Set the model back to training mode
 
-            if global_step >= max_steps:
+            if global_step >= MAX_STEPS:
+                save_dir = os.path.join(output_dir, f"final")
+                model.save_pretrained(save_dir)
+                processor.save_pretrained(save_dir)
                 break
 
-        if global_step >= max_steps:
+        if global_step >= MAX_STEPS:
+            save_dir = os.path.join(output_dir, f"final")
+            model.save_pretrained(save_dir)
+            processor.save_pretrained(save_dir)
             break
 
     progress_bar.close()
-
-    if accelerator.is_local_main_process:
-        save_dir = os.path.join(output_dir, "final")
-        unwrapped_model = accelerator.unwrap_model(model)
-        unwrapped_model.save_pretrained(save_dir)
-        processor.save_pretrained(save_dir)
-
-if __name__ == "__main__":
-    train_and_validate(
-        model_name="Qwen/Qwen2-VL-2B-Instruct",
-        dataset_name="your_dataset_name",
-        image_column="image_column_name",
-        text_column="text_column_name",
-        user_text="Convert this image to text",
-        num_accumulation_steps=2,
-        eval_steps=10000,
-        max_steps=100000
-    )
+    # logger.info("Training completed.")
