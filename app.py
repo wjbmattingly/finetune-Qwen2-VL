@@ -1,6 +1,6 @@
 import gradio as gr
 import torch
-from finetune_distributed import train_and_validate
+from working_finetune import train_and_validate
 import json
 
 def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps):
