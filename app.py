@@ -2,6 +2,7 @@ import gradio as gr
 import torch
 from finetune import train_and_validate
 import json
+import datasets
 
 def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps, train_batch_size, val_batch_size, train_select_start, train_select_end, val_select_start, val_select_end, train_field, val_field):
     # Set the device
