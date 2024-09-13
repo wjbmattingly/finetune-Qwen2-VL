@@ -21,8 +21,14 @@ logger = get_logger()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def find_assistant_content_sublist_indexes(l):
+    # (Pdb++) processor.tokenizer.encode("<|im_start|>assistant")
+    # [151644, 77091]
+    # (Pdb++) processor.tokenizer.encode("<|im_end|>")
+    # [151645]
+
     start_indexes = []
     end_indexes = []
+
     # Iterate through the list to find starting points
     for i in range(len(l) - 1):
         # Check if the current and next element form the start sequence
@@ -33,6 +39,7 @@ def find_assistant_content_sublist_indexes(l):
                 if l[j] == 151645:
                     end_indexes.append(j)
                     break  # Move to the next start after finding the end
+
     return list(zip(start_indexes, end_indexes))
 
 class HuggingFaceDataset(Dataset):
@@ -49,7 +56,7 @@ class HuggingFaceDataset(Dataset):
         item = self.dataset[idx]
         image = item[self.image_column]
         assistant_text = item[self.text_column]
-        
+
         return {
             "messages": [
                 {
@@ -171,40 +178,47 @@ def train_and_validate(dataset_name, image_column, text_column, user_text="Conve
 
     progress_bar = tqdm(total=max_steps, desc="Training")
 
-    for batch in train_loader:
-        global_step += 1
-        inputs, labels = batch
-        outputs = model(**inputs, labels=labels)
-        
-        loss = outputs.loss / num_accumulation_steps
-        loss.backward()
-        
-        if global_step % num_accumulation_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
+    while global_step < max_steps:
+        for batch in train_loader:
+            global_step += 1
+            inputs, labels = batch
+            outputs = model(**inputs, labels=labels)
+            
+            loss = outputs.loss / num_accumulation_steps
+            loss.backward()
+            
+            if global_step % num_accumulation_steps == 0:
+                optimizer.step()
+                optimizer.zero_grad()
 
-        progress_bar.update(1)
-        progress_bar.set_postfix({"loss": loss.item() * num_accumulation_steps})
+            progress_bar.update(1)
+            progress_bar.set_postfix({"loss": loss.item() * num_accumulation_steps})
 
-        if global_step % eval_steps == 0 or global_step >= max_steps:
-            avg_val_loss = validate(model, val_loader)
-            logger.info(f"Step {global_step}, Validation Loss: {avg_val_loss}")
+            # Perform evaluation and save model every EVAL_STEPS
+            if global_step % eval_steps == 0 or global_step == max_steps:
+                avg_val_loss = validate(model, val_loader)
+                logger.info(f"Step {global_step}, Validation Loss: {avg_val_loss}")
 
-            save_dir = os.path.join(output_dir, f"model_step_{global_step}")
-            os.makedirs(save_dir, exist_ok=True)
-            model.save_pretrained(save_dir)
-            processor.save_pretrained(save_dir)
-            logger.info(f"Model and processor saved at step {global_step}")
+                # Save the model and processor
+                save_dir = os.path.join(output_dir, f"model_step_{global_step}")
+                os.makedirs(save_dir, exist_ok=True)
+                model.save_pretrained(save_dir)
+                processor.save_pretrained(save_dir)
+                logger.info(f"Model and processor saved at step {global_step}")
 
-            model.train()  # Set the model back to training mode
+                model.train()  # Set the model back to training mode
+
+            if global_step >= max_steps:
+                save_dir = os.path.join(output_dir, f"final")
+                model.save_pretrained(save_dir)
+                processor.save_pretrained(save_dir)
+                break
 
         if global_step >= max_steps:
+            save_dir = os.path.join(output_dir, f"final")
+            model.save_pretrained(save_dir)
+            processor.save_pretrained(save_dir)
             break
-
-    # Final save
-    save_dir = os.path.join(output_dir, "final")
-    model.save_pretrained(save_dir)
-    processor.save_pretrained(save_dir)
 
     progress_bar.close()
     logger.info("Training completed.")
