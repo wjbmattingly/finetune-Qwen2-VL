@@ -3,12 +3,13 @@ import torch
 from finetune import train_and_validate
 import json
 
-def finetune_model(output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps):
+def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps):
     # Set the device
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Call the train_and_validate function with the provided parameters
     train_and_validate(
+        model_name=model_name,
         dataset_name=dataset_name,
         image_column=image_column,
         text_column=text_column,
@@ -70,6 +71,12 @@ with gr.Blocks() as iface:
     sample_data = gr.DataFrame(label="Sample Data")
     
     load_button.click(update_fields, inputs=[dataset_name], outputs=[image_column, text_column, sample_data])
+
+    model_name = gr.Dropdown(
+        label="Model Name",
+        choices=["Qwen/Qwen2-VL-2B-Instruct", "Qwen/Qwen2-VL-7B-Instruct"],
+        value="Qwen/Qwen2-VL-2B-Instruct"
+    )
     
     user_text = gr.Textbox(label="User Instructions", value="Convert this image to text")
     preview_button = gr.Button("Preview Message Structure")
@@ -87,7 +94,7 @@ with gr.Blocks() as iface:
     
     finetune_button.click(
         finetune_model,
-        inputs=[output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps],
+        inputs=[model_name,output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps],
         outputs=[result]
     )
 

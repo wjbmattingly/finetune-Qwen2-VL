@@ -1,5 +1,5 @@
 import torch
-import datetime
+# import datetime
 import os
 import base64
 from io import BytesIO
@@ -10,7 +10,7 @@ from torch.optim import AdamW
 from datasets import load_dataset
 from PIL import Image
 from functools import partial
-from util.logutil import init_logger, get_logger
+# from util.logutil import init_logger, get_logger
 from tqdm import tqdm
 
 
@@ -130,14 +130,14 @@ def validate(model, val_loader):
     model.train()
     return avg_val_loss
 
-def train_and_validate(dataset_name, image_column, text_column, device="cuda", user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+def train_and_validate(model_name, dataset_name, image_column, text_column, device="cuda", user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
     model = Qwen2VLForConditionalGeneration.from_pretrained(
-        "Qwen/Qwen2-VL-2B-Instruct", torch_dtype=torch.bfloat16,
+        model_name, torch_dtype=torch.bfloat16,
         # attn_implementation="flash_attention_2",
         device_map=device
     )
 
-    processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-2B-Instruct", min_pixels=256*28*28, max_pixels=512*28*28, padding_side="right")
+    processor = AutoProcessor.from_pretrained(model_name, min_pixels=256*28*28, max_pixels=512*28*28, padding_side="right")
 
     # Load and split the dataset
     dataset = load_dataset(dataset_name)
