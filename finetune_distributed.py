@@ -10,15 +10,12 @@ from datasets import load_dataset
 from PIL import Image
 from functools import partial
 from tqdm import tqdm
+import datetime
 
 from accelerate import Accelerator
 
 accelerator = Accelerator(gradient_accumulation_steps=2)
 device = accelerator.device
-
-output_dir = f'train_output/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}/'
-if accelerator.is_local_main_process:
-    os.makedirs(output_dir, exist_ok=True)
 
 def find_assistant_content_sublist_indexes(l):
     start_indexes = []
@@ -127,7 +124,10 @@ def validate(model, val_loader):
     model.train()
     return avg_val_loss
 
-def train_and_validate(model_name, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+def train_and_validate(model_name, output_dir, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+    if accelerator.is_local_main_process:
+        os.makedirs(output_dir, exist_ok=True)
+
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         model_name, torch_dtype=torch.bfloat16,
         device_map=device
@@ -207,15 +207,3 @@ def train_and_validate(model_name, dataset_name, image_column, text_column, user
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(save_dir)
         processor.save_pretrained(save_dir)
-
-if __name__ == "__main__":
-    train_and_validate(
-        model_name="Qwen/Qwen2-VL-2B-Instruct",
-        dataset_name="your_dataset_name",
-        image_column="image_column_name",
-        text_column="text_column_name",
-        user_text="Convert this image to text",
-        num_accumulation_steps=2,
-        eval_steps=10000,
-        max_steps=100000
-    )
