@@ -102,4 +102,4 @@ with gr.Blocks() as iface:
 
 # Launch the app
 if __name__ == "__main__":
-    iface.launch(server_port=8084, server_name="compute-79-01")
+    iface.launch(server_port=8083, server_name="compute-79-01")
