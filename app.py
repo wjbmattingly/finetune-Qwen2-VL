@@ -5,7 +5,7 @@ import json
 
 def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps):
     # Set the device
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
     
     # Call the train_and_validate function with the provided parameters
     train_and_validate(
@@ -13,7 +13,7 @@ def finetune_model(model_name, output_dir, dataset_name, image_column, text_colu
         dataset_name=dataset_name,
         image_column=image_column,
         text_column=text_column,
-        device=device,
+        # device=device,
         user_text=user_text,
         num_accumulation_steps=num_accumulation_steps,
         eval_steps=eval_steps,

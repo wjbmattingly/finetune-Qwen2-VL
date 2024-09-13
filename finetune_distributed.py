@@ -14,8 +14,7 @@ import datetime
 
 from accelerate import Accelerator
 
-accelerator = Accelerator(gradient_accumulation_steps=2)
-device = accelerator.device
+
 
 def find_assistant_content_sublist_indexes(l):
     start_indexes = []
@@ -125,6 +124,8 @@ def validate(model, val_loader):
     return avg_val_loss
 
 def train_and_validate(model_name, output_dir, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+    accelerator = Accelerator(gradient_accumulation_steps=2)
+    device = accelerator.device
     if accelerator.is_local_main_process:
         os.makedirs(output_dir, exist_ok=True)
 
