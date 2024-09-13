@@ -14,7 +14,7 @@ def finetune_model(model_name, output_dir, dataset_name, image_column, text_colu
         dataset_name=dataset_name,
         image_column=image_column,
         text_column=text_column,
-        # device=device,
+        device=device,
         user_text=user_text,
         num_accumulation_steps=num_accumulation_steps,
         eval_steps=eval_steps,
