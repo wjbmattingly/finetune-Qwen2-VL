@@ -14,18 +14,7 @@ from util.logutil import init_logger, get_logger
 from tqdm import tqdm
 
 
-output_dir = f'/scratch/genomics/mattinglyw/qwen2-vl-2v-train_output/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}/'
-init_logger(output_dir)
-logger = get_logger()
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 def find_assistant_content_sublist_indexes(l):
-    # (Pdb++) processor.tokenizer.encode("<|im_start|>assistant")
-    # [151644, 77091]
-    # (Pdb++) processor.tokenizer.encode("<|im_end|>")
-    # [151645]
-
     start_indexes = []
     end_indexes = []
 
@@ -141,7 +130,7 @@ def validate(model, val_loader):
     model.train()
     return avg_val_loss
 
-def train_and_validate(dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+def train_and_validate(dataset_name, image_column, text_column, device="cuda", user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         "Qwen/Qwen2-VL-2B-Instruct", torch_dtype=torch.bfloat16,
         # attn_implementation="flash_attention_2",
@@ -197,14 +186,14 @@ def train_and_validate(dataset_name, image_column, text_column, user_text="Conve
             # Perform evaluation and save model every EVAL_STEPS
             if global_step % eval_steps == 0 or global_step == max_steps:
                 avg_val_loss = validate(model, val_loader)
-                logger.info(f"Step {global_step}, Validation Loss: {avg_val_loss}")
+                # logger.info(f"Step {global_step}, Validation Loss: {avg_val_loss}")
 
                 # Save the model and processor
                 save_dir = os.path.join(output_dir, f"model_step_{global_step}")
                 os.makedirs(save_dir, exist_ok=True)
                 model.save_pretrained(save_dir)
                 processor.save_pretrained(save_dir)
-                logger.info(f"Model and processor saved at step {global_step}")
+                # logger.info(f"Model and processor saved at step {global_step}")
 
                 model.train()  # Set the model back to training mode
 
@@ -221,8 +210,3 @@ def train_and_validate(dataset_name, image_column, text_column, user_text="Conve
             break
 
     progress_bar.close()
-    logger.info("Training completed.")
-
-if __name__ == "__main__":
-    # Replace with your dataset name and column names
-    train_and_validate("wjbmattingly/catmus-qwen2-vl", "image", "text", "Convert this image to text.")
