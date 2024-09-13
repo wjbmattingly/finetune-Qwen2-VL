@@ -2,7 +2,7 @@ import gradio as gr
 import torch
 from finetune import train_and_validate
 import json
-import datasets
+from datasets import load_dataset
 
 def finetune_model(model_name, output_dir, dataset_name, image_column, text_column, user_text, num_accumulation_steps, eval_steps, max_steps, train_batch_size, val_batch_size, train_select_start, train_select_end, val_select_start, val_select_end, train_field, val_field):
     # Set the device
@@ -108,10 +108,10 @@ with gr.Blocks() as iface:
             val_batch_size = gr.Number(label="Validation Batch Size", value=1)
         with gr.Column():
             train_select_start = gr.Number(label="Training Select Start", value=0)
-            train_select_end = gr.Number(label="Training Select End", value=1000, maximum=len(dataset['train']))
+            train_select_end = gr.Number(label="Training Select End", value=100000, maximum=len(dataset['train']))
         with gr.Column():
-            val_select_start = gr.Number(label="Validation Select Start", value=0, maximum=len(dataset[train_field]))
-            val_select_end = gr.Number(label="Validation Select End", value=1000, maximum=len(dataset[val_field]))
+            val_select_start = gr.Number(label="Validation Select Start", value=0)
+            val_select_end = gr.Number(label="Validation Select End", value=10000)
     finetune_button = gr.Button("Start Finetuning")
     result = gr.Textbox(label="Result")
     
