@@ -130,7 +130,7 @@ def validate(model, val_loader):
     model.train()
     return avg_val_loss
 
-def train_and_validate(model_name, output_dir,dataset_name, image_column, text_column, device="cuda", user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000):
+def train_and_validate(model_name, output_dir,dataset_name, image_column, text_column, device="cuda", user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000, max_train=1000, max_val=100):
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         model_name, torch_dtype=torch.bfloat16,
         # attn_implementation="flash_attention_2",
@@ -141,8 +141,8 @@ def train_and_validate(model_name, output_dir,dataset_name, image_column, text_c
 
     # Load and split the dataset
     dataset = load_dataset(dataset_name)
-    train_dataset = dataset['train'].shuffle(seed=42).select(range(int(len(dataset['train']) * 0.9)))
-    val_dataset = dataset['train'].shuffle(seed=42).select(range(int(len(dataset['train']) * 0.9), len(dataset['train'])))
+    train_dataset = dataset['train'].shuffle(seed=42).select(max_train)
+    val_dataset = dataset['train'].shuffle(seed=42).select(max_val)
 
     train_dataset = HuggingFaceDataset(train_dataset, image_column, text_column, user_text)
     val_dataset = HuggingFaceDataset(val_dataset, image_column, text_column, user_text)
