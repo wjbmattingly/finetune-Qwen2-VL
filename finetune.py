@@ -92,7 +92,7 @@ class HuggingFaceDataset(Dataset):
                 {
                     "role": "assistant",
                     "content": [
-                        {"type": "text", "text": assistant_text}
+                        {"type": "text", "text": str(assistant_text)}
                     ]
                 }
             ]
@@ -237,7 +237,7 @@ def train_and_validate(model_name, output_dir,dataset_name, image_column, text_c
         device_map=device
     )
 
-    processor = AutoProcessor.from_pretrained(model_name, min_pixels=256*28*28, max_pixels=512*28*28, padding_side="right")
+    processor = AutoProcessor.from_pretrained(model_name, min_pixels=256*28*28, max_pixels=384*28*28, padding_side="right")
 
     # Load and split the dataset
     dataset = load_dataset(dataset_name)
