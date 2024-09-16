@@ -167,6 +167,8 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
             with accelerator.accumulate(model):
                 global_step += 1
                 inputs, labels = batch
+                # Move labels to the same device as the model
+                labels = labels.to(model.device)
                 outputs = model(**inputs, labels=labels)
                 
                 loss = outputs.loss
