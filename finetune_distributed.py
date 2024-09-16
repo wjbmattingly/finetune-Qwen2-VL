@@ -121,7 +121,7 @@ def validate(model, val_loader):
     model.train()
     return avg_val_loss
 
-def train_and_validate(model_name, output_dir, dataset_name, image_column, text_column, device="cuda", user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000, train_select_start=0, train_select_end=1000, val_select_start=0, val_select_end=1000, train_batch_size=1, val_batch_size=1, train_field="train", val_field="validation"):
+def train_and_validate(model_name, output_dir, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000, train_select_start=0, train_select_end=1000, val_select_start=0, val_select_end=1000, train_batch_size=1, val_batch_size=1, train_field="train", val_field="validation"):
     accelerator = Accelerator(gradient_accumulation_steps=num_accumulation_steps)
     device = accelerator.device
     if accelerator.is_local_main_process:
@@ -129,7 +129,7 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
 
     model = Qwen2VLForConditionalGeneration.from_pretrained(
         model_name, torch_dtype=torch.bfloat16,
-        device_map=device
+        device_map="auto"
     )
 
     processor = AutoProcessor.from_pretrained(model_name, min_pixels=256*28*28, max_pixels=512*28*28, padding_side="right")
