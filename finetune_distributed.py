@@ -127,8 +127,7 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
         os.makedirs(output_dir, exist_ok=True)
 
     model = Qwen2VLForConditionalGeneration.from_pretrained(
-        model_name, torch_dtype=torch.bfloat16,
-        device_map="auto"
+        model_name, torch_dtype=torch.bfloat16
     )
 
     processor = AutoProcessor.from_pretrained(model_name, min_pixels=256*28*28, max_pixels=512*28*28, padding_side="right")
