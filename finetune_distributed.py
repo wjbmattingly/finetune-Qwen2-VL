@@ -12,7 +12,7 @@ from functools import partial
 from tqdm import tqdm
 import datetime
 
-from accelerate import Accelerator
+from accelerate import Accelerator, DistributedDataParallelKwargs
 
 def find_assistant_content_sublist_indexes(l):
     start_indexes = []
@@ -120,7 +120,8 @@ def validate(model, val_loader):
     return avg_val_loss
 
 def train_and_validate(model_name, output_dir, dataset_name, image_column, text_column, user_text="Convert this image to text", num_accumulation_steps=2, eval_steps=10000, max_steps=100000, train_select_start=0, train_select_end=1000, val_select_start=0, val_select_end=1000, train_batch_size=1, val_batch_size=1, train_field="train", val_field="validation"):
-    accelerator = Accelerator(gradient_accumulation_steps=num_accumulation_steps)
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    accelerator = Accelerator(gradient_accumulation_steps=num_accumulation_steps, kwargs_handlers=[ddp_kwargs])
     device = accelerator.device
     if accelerator.is_local_main_process:
         os.makedirs(output_dir, exist_ok=True)
@@ -158,16 +159,13 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
     model, optimizer, train_loader, val_loader = accelerator.prepare(model, optimizer, train_loader, val_loader)
 
     global_step = 0
-    progress_bar = tqdm(total=max_steps, desc="Training")
+    progress_bar = tqdm(total=max_steps, desc="Training", disable=not accelerator.is_local_main_process)
 
     while global_step < max_steps:
         for batch in train_loader:
             with accelerator.accumulate(model):
                 global_step += 1
                 inputs, labels = batch
-                # Move inputs and labels to the model's device
-                inputs = {k: v.to(model.device) for k, v in inputs.items()}
-                labels = labels.to(model.device)
                 outputs = model(**inputs, labels=labels)
                 
                 loss = outputs.loss
@@ -177,8 +175,9 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
                     optimizer.step()
                     optimizer.zero_grad()
 
-            progress_bar.update(1)
-            progress_bar.set_postfix({"loss": loss.item()})
+            if accelerator.is_local_main_process:
+                progress_bar.update(1)
+                progress_bar.set_postfix({"loss": loss.item()})
 
             if global_step % eval_steps == 0 or global_step == max_steps:
                 avg_val_loss = validate(model, val_loader)
