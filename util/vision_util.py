@@ -11,17 +11,37 @@ from torchvision import io, transforms
 from torchvision.transforms import InterpolationMode
 
 
+# IMAGE_FACTOR: The factor by which image dimensions should be divisible
 IMAGE_FACTOR = 28
+
+# MIN_PIXELS: Minimum number of pixels allowed in an image (4 * 28 * 28)
 MIN_PIXELS = 4 * 28 * 28
+
+# MAX_PIXELS: Maximum number of pixels allowed in an image (16384 * 28 * 28)
 MAX_PIXELS = 16384 * 28 * 28
+
+# MAX_RATIO: Maximum allowed aspect ratio for an image
 MAX_RATIO = 200
 
-VIDEO_MIN_PIXELS = 128 * 28 * 28
-VIDEO_MAX_PIXELS = 768 * 28 * 28
-VIDEO_TOTAL_PIXELS = 24576 * 28 * 28
+# VIDEO_MIN_PIXELS: Minimum number of pixels allowed in a video frame (128 * 28 * 28)
+VIDEO_MIN_PIXELS = 128 * IMAGE_FACTOR * IMAGE_FACTOR
+
+# VIDEO_MAX_PIXELS: Maximum number of pixels allowed in a video frame (768 * 28 * 28)
+VIDEO_MAX_PIXELS = 768 * IMAGE_FACTOR * IMAGE_FACTOR
+
+# VIDEO_TOTAL_PIXELS: Maximum total number of pixels allowed across all frames (24576 * 28 * 28)
+VIDEO_TOTAL_PIXELS = 24576 * IMAGE_FACTOR * IMAGE_FACTOR
+
+# FRAME_FACTOR: Factor by which frame dimensions should be divisible
 FRAME_FACTOR = 2
+
+# FPS: Frames per second for video processing
 FPS = 2.0
+
+# FPS_MIN_FRAMES: Minimum number of frames allowed in a video
 FPS_MIN_FRAMES = 4
+
+# FPS_MAX_FRAMES: Maximum number of frames allowed in a video
 FPS_MAX_FRAMES = 768
 
 

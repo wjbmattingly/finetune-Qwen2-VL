@@ -15,6 +15,25 @@ from tqdm import tqdm
 
 
 def find_assistant_content_sublist_indexes(l):
+    """
+    Find the start and end indexes of assistant content sublists within a given list.
+
+    This function searches for specific token sequences that indicate the beginning and end
+    of assistant content in a tokenized list. It identifies pairs of start and end indexes
+    for each occurrence of assistant content.
+
+    Args:
+        l (list): A list of tokens to search through.
+
+    Returns:
+        list of tuples: A list of (start_index, end_index) pairs indicating the positions
+        of assistant content sublists within the input list.
+
+    Note:
+        - The start of assistant content is identified by the sequence [151644, 77091].
+        - The end of assistant content is marked by the token 151645.
+        - This function assumes that each start sequence has a corresponding end token.
+    """
     start_indexes = []
     end_indexes = []
 
@@ -32,6 +51,21 @@ def find_assistant_content_sublist_indexes(l):
     return list(zip(start_indexes, end_indexes))
 
 class HuggingFaceDataset(Dataset):
+    """
+    A custom Dataset class for handling HuggingFace datasets with image and text pairs.
+
+    This class is designed to work with datasets that contain image-text pairs,
+    specifically for use in vision-language models. It processes the data to create
+    a format suitable for models like Qwen2-VL, structuring each item as a conversation
+    with a user query (including an image) and an assistant response.
+
+    Attributes:
+        dataset: The HuggingFace dataset to be wrapped.
+        image_column (str): The name of the column containing image data.
+        text_column (str): The name of the column containing text data.
+        user_text (str): The default user query text to pair with each image.
+
+    """
     def __init__(self, dataset, image_column, text_column, user_text="Convert this image to text"):
         self.dataset = dataset
         self.image_column = image_column
@@ -65,6 +99,29 @@ class HuggingFaceDataset(Dataset):
         }
 
 def ensure_pil_image(image, min_size=256):
+    """
+    Ensures that the input image is a PIL Image object and meets a minimum size requirement.
+
+    This function handles different input types:
+    - If the input is already a PIL Image, it's used directly.
+    - If the input is a string, it's assumed to be a base64-encoded image and is decoded.
+    - For other input types, a ValueError is raised.
+
+    The function also resizes the image if it's smaller than the specified minimum size,
+    maintaining the aspect ratio.
+
+    Args:
+        image (Union[PIL.Image.Image, str]): The input image, either as a PIL Image object
+                                             or a base64-encoded string.
+        min_size (int, optional): The minimum size (in pixels) for both width and height. 
+                                  Defaults to 256.
+
+    Returns:
+        PIL.Image.Image: A PIL Image object meeting the size requirements.
+
+    Raises:
+        ValueError: If the input image type is not supported.
+    """
     if isinstance(image, Image.Image):
         pil_image = image
     elif isinstance(image, str):
@@ -89,12 +146,34 @@ def ensure_pil_image(image, min_size=256):
     return pil_image
 
 def collate_fn(batch, processor, device):
+    """
+    Collate function for processing batches of data for the Qwen2-VL model.
+
+    This function prepares the input data for training or inference by processing
+    the messages, applying chat templates, ensuring images are in the correct format,
+    and creating input tensors for the model.
+
+    Args:
+        batch (List[Dict]): A list of dictionaries, each containing 'messages' with text and image data.
+        processor (AutoProcessor): The processor for the Qwen2-VL model, used for tokenization and image processing.
+        device (torch.device): The device (CPU or GPU) to which the tensors should be moved.
+
+    Returns:
+        Tuple[Dict[str, torch.Tensor], torch.Tensor]: A tuple containing:
+            - inputs: A dictionary of input tensors for the model (e.g., input_ids, attention_mask).
+            - labels_ids: A tensor of label IDs for training, with -100 for non-assistant tokens.
+
+    Note:
+        This function assumes that each message in the batch contains both text and image data,
+        and that the first content item in each message is an image.
+    """
     messages = [item['messages'] for item in batch]
     texts = [processor.apply_chat_template(msg, tokenize=False, add_generation_prompt=False) for msg in messages]
     
     # Ensure all images are PIL Image objects
     images = [ensure_pil_image(msg[0]['content'][0]['image']) for msg in messages]
     
+    # Process the text and images using the processor
     inputs = processor(
         text=texts,
         images=images,
@@ -102,21 +181,42 @@ def collate_fn(batch, processor, device):
         return_tensors="pt",
     )
 
+    # Move the inputs to the specified device (CPU or GPU)
     inputs = inputs.to(device)
 
+    # Convert input IDs to a list of lists for easier processing
     input_ids_lists = inputs['input_ids'].tolist()
     labels_list = []
     for ids_list in input_ids_lists:
+        # Initialize label IDs with -100 (ignored in loss calculation)
         label_ids = [-100] * len(ids_list)
+        # Find the indexes of assistant content in the input IDs
         for begin_end_indexs in find_assistant_content_sublist_indexes(ids_list):
+            # Set the label IDs for assistant content, skipping the first two tokens
             label_ids[begin_end_indexs[0]+2:begin_end_indexs[1]+1] = ids_list[begin_end_indexs[0]+2:begin_end_indexs[1]+1]
         labels_list.append(label_ids)
 
+    # Convert the labels list to a tensor
     labels_ids = torch.tensor(labels_list, dtype=torch.int64)
 
+    # Return the processed inputs and label IDs
     return inputs, labels_ids
 
 def validate(model, val_loader):
+    """
+    Validate the model on the validation dataset.
+
+    Args:
+        model (nn.Module): The model to validate.
+        val_loader (DataLoader): DataLoader for the validation dataset.
+
+    Returns:
+        float: The average validation loss.
+
+    This function sets the model to evaluation mode, performs a forward pass
+    on the validation data without gradient computation, calculates the loss,
+    and returns the average validation loss across all batches.
+    """
     model.eval()
     total_val_loss = 0
     with torch.no_grad():
