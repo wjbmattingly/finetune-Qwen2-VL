@@ -20,22 +20,4 @@ export PATH=/home/mattinglyw/mambaforge/envs/ushmm/bin:$PATH
 echo + `date` job $JOB_NAME started in $QUEUE with jobID=$JOB_ID on $HOSTNAME
 echo + NSLOTS = $NSLOTS
 module load nvidia
-
-python finetune_distributed.py \
-    --model_name "Qwen/Qwen2-VL-7B" \
-    --output_dir "./output" \
-    --dataset_name "catmus/medieval" \
-    --image_column "im" \
-    --text_column "text" \
-    --user_text "Convert this image to text" \
-    --num_accumulation_steps 2 \
-    --eval_steps 100 \
-    --max_steps 1000 \
-    --train_select_start 0 \
-    --train_select_end 1000 \
-    --val_select_start 0 \
-    --val_select_end 1000 \
-    --train_batch_size 3 \
-    --val_batch_size 3 \
-    --train_field "train" \
-    --val_field "validation"
+python finetune_distributed.py --model_name "Qwen/Qwen2-VL-7B" --output_dir "./output" --dataset_name "catmus/medieval" --image_column "im" --text_column "text" --user_text "Convert this image to text" --num_accumulation_steps 2 --eval_steps 100 --max_steps 1000 --train_select_start 0 --train_select_end 1000 --val_select_start 0 --val_select_end 1000 --train_batch_size 3 --val_batch_size 3 --train_field "train" --val_field "validation"
