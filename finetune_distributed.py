@@ -208,53 +208,23 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
         processor.save_pretrained(save_dir)
 
 
-        accelerator.print("Training completed.")
-
-        # Add command-line argument parsing
-        import argparse
-
-        def main():
-            parser = argparse.ArgumentParser(description="Fine-tune Qwen2-VL model")
-            parser.add_argument("--model_name", type=str, required=True, help="Name of the model to fine-tune")
-            parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the fine-tuned model")
-            parser.add_argument("--dataset_name", type=str, required=True, help="Name of the dataset to use")
-            parser.add_argument("--image_column", type=str, required=True, help="Name of the image column in the dataset")
-            parser.add_argument("--text_column", type=str, required=True, help="Name of the text column in the dataset")
-            parser.add_argument("--user_text", type=str, default="Convert this image to text", help="User text prompt")
-            parser.add_argument("--num_accumulation_steps", type=int, default=2, help="Number of gradient accumulation steps")
-            parser.add_argument("--eval_steps", type=int, default=100, help="Number of steps between evaluations")
-            parser.add_argument("--max_steps", type=int, default=1000, help="Maximum number of training steps")
-            parser.add_argument("--train_select_start", type=int, default=0, help="Start index for training data selection")
-            parser.add_argument("--train_select_end", type=int, default=1000, help="End index for training data selection")
-            parser.add_argument("--val_select_start", type=int, default=0, help="Start index for validation data selection")
-            parser.add_argument("--val_select_end", type=int, default=1000, help="End index for validation data selection")
-            parser.add_argument("--train_batch_size", type=int, default=3, help="Training batch size")
-            parser.add_argument("--val_batch_size", type=int, default=3, help="Validation batch size")
-            parser.add_argument("--train_field", type=str, default="train", help="Field name for training data")
-            parser.add_argument("--val_field", type=str, default="validation", help="Field name for validation data")
-
-            args = parser.parse_args()
-
-            # Call the training function with parsed arguments
-            train_and_validate(
-                model_name=args.model_name,
-                output_dir=args.output_dir,
-                dataset_name=args.dataset_name,
-                image_column=args.image_column,
-                text_column=args.text_column,
-                user_text=args.user_text,
-                num_accumulation_steps=args.num_accumulation_steps,
-                eval_steps=args.eval_steps,
-                max_steps=args.max_steps,
-                train_select_start=args.train_select_start,
-                train_select_end=args.train_select_end,
-                val_select_start=args.val_select_start,
-                val_select_end=args.val_select_end,
-                train_batch_size=args.train_batch_size,
-                val_batch_size=args.val_batch_size,
-                train_field=args.train_field,
-                val_field=args.val_field
-            )
-
-        if __name__ == "__main__":
-            main()
+if __name__ == "__main__":
+    train_and_validate(
+        model_name="Qwen/Qwen2-VL-2B",
+        output_dir="./output",
+        dataset_name="catmus/medieval",
+        image_column="im",
+        text_column="text",
+        user_text="Convert this image to text",
+        num_accumulation_steps=2,
+        eval_steps=100,
+        max_steps=1000,
+        train_select_start=0,
+        train_select_end=1000,
+        val_select_start=0,
+        val_select_end=1000,
+        train_batch_size=3,
+        val_batch_size=3,
+        train_field="train",
+        val_field="validation"
+    )
