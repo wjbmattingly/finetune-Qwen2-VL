@@ -93,7 +93,7 @@ def collate_fn(batch, processor, device):
         return_tensors="pt",
     )
 
-    inputs = inputs.to(device)
+    inputs = {k: v.to(device) for k, v in inputs.items()}
 
     input_ids_lists = inputs['input_ids'].tolist()
     labels_list = []
@@ -103,7 +103,7 @@ def collate_fn(batch, processor, device):
             label_ids[begin_end_indexs[0]+2:begin_end_indexs[1]+1] = ids_list[begin_end_indexs[0]+2:begin_end_indexs[1]+1]
         labels_list.append(label_ids)
 
-    labels_ids = torch.tensor(labels_list, dtype=torch.int64)
+    labels_ids = torch.tensor(labels_list, dtype=torch.int64, device=device)
 
     return inputs, labels_ids
 
