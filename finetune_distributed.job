@@ -20,6 +20,6 @@ export PATH=/home/mattinglyw/mambaforge/envs/ushmm/bin:$PATH
 echo + `date` job $JOB_NAME started in $QUEUE with jobID=$JOB_ID on $HOSTNAME
 echo + NSLOTS = $NSLOTS
 module load nvidia
-python finetune_distributed.py
+torchrun --nproc_per_node=2 finetune_distributed.py
 
 echo "Job finished at $(date)"
