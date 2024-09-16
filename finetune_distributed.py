@@ -80,7 +80,7 @@ def ensure_pil_image(image, min_size=256):
     
     return pil_image
 
-def collate_fn(batch, processor, device):
+def collate_fn(batch, processor):
     messages = [item['messages'] for item in batch]
     texts = [processor.apply_chat_template(msg, tokenize=False, add_generation_prompt=False) for msg in messages]
     
@@ -93,8 +93,6 @@ def collate_fn(batch, processor, device):
         return_tensors="pt",
     )
 
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-
     input_ids_lists = inputs['input_ids'].tolist()
     labels_list = []
     for ids_list in input_ids_lists:
@@ -103,7 +101,7 @@ def collate_fn(batch, processor, device):
             label_ids[begin_end_indexs[0]+2:begin_end_indexs[1]+1] = ids_list[begin_end_indexs[0]+2:begin_end_indexs[1]+1]
         labels_list.append(label_ids)
 
-    labels_ids = torch.tensor(labels_list, dtype=torch.int64, device=device)
+    labels_ids = torch.tensor(labels_list, dtype=torch.int64)
 
     return inputs, labels_ids
 
@@ -144,14 +142,14 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
     train_loader = DataLoader(
         train_dataset,
         batch_size=train_batch_size,
-        collate_fn=partial(collate_fn, processor=processor, device=device),
+        collate_fn=partial(collate_fn, processor=processor),
         shuffle=True
     )
 
     val_loader = DataLoader(
         val_dataset,
         batch_size=val_batch_size,
-        collate_fn=partial(collate_fn, processor=processor, device=device)
+        collate_fn=partial(collate_fn, processor=processor)
     )
 
     model.train()
@@ -167,10 +165,9 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
             with accelerator.accumulate(model):
                 global_step += 1
                 inputs, labels = batch
-                # Ensure labels are on the same device as the model
-                labels = labels.to(model.device)
-                # Ensure inputs are on the same device as the model
+                # Move inputs and labels to the model's device
                 inputs = {k: v.to(model.device) for k, v in inputs.items()}
+                labels = labels.to(model.device)
                 outputs = model(**inputs, labels=labels)
                 
                 loss = outputs.loss
