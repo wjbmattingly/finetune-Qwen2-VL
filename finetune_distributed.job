@@ -2,7 +2,7 @@
 # ----------------Parameters---------------------- #
 #$ -S /bin/sh
 #$ -pe mthread 1
-#$ -l gpu,ngpu=2,gpu_arch=LS40s
+#$ -l gpu,ngpu=2,gpu_arch=L40s
 #$ -cwd
 #$ -j y
 #$ -N finetune-d
