@@ -210,7 +210,7 @@ def train_and_validate(model_name, output_dir, dataset_name, image_column, text_
 
 if __name__ == "__main__":
     train_and_validate(
-        model_name="Qwen/Qwen2-VL-2B",
+        model_name="Qwen/Qwen2-VL-2B-Instruct",
         output_dir="./output",
         dataset_name="catmus/medieval",
         image_column="im",
